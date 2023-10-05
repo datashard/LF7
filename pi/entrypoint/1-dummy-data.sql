@@ -1,0 +1,12 @@
+-- insert into
+--     devices (name, id)
+-- values
+--     ('Example Device', 'ex-01');
+-- insert into
+--     waterlevel (level, device)
+-- values
+--     ("50", "ex-01");
+-- insert into
+--     settings (device, interval)
+-- values
+-- ('ex-01', 60000)
