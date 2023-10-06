@@ -1,0 +1,2 @@
+-- GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost';
+-- UPDATE mysql.user SET host='%' WHERE user='root';

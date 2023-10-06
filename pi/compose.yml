@@ -15,10 +15,10 @@ services:
       retries: 10
     environment:
       TZ: "Europe/Berlin"
-      MYSQL_ROOT_PASSWORD: root
       MYSQL_USER: admin
       MYSQL_PASSWORD: admin
       MYSQL_DATABASE: jch
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
   api:
     container_name: api
     depends_on:
@@ -27,6 +27,7 @@ services:
     environment:
       - NTFY_TOPIC=waterlevel_vo29adkfmco
       - NTFY_SERVER=ntfy.lio.systems
+      - NTFY_TOKEN="QmFzaWMgY0hKbGMyVnVkR0YwYVc5dU9uUmxjM1JwYm1jPQ"
     restart: always
     build: ./api
     ports:

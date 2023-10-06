@@ -6,4 +6,4 @@ COPY . ./
 
 RUN deno cache index.ts
 
-CMD ["run", "--allow-net", "index.ts"]
+CMD ["run", "--allow-all", "index.ts"]

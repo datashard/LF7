@@ -2,30 +2,40 @@ import { Application, Router } from "https://deno.land/x/oak@v11.1.0/mod.ts";
 import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
 
 import query from "./lib/mysql.ts";
+import queries from './lib/queries.ts'
 import getBody from "./lib/getBody.ts";
 import returnError from "./lib/errors.ts";
+import sendNotif from "./lib/sendNotif.ts";
 
 const router = new Router();
 
 router.get('/', async (ctx) => {
+    // TODO Replace
     ctx.response.body = (await query('select * from devices;')).rows
 })
 
 router.post('/register', async (ctx) => {
     try {
         const body = await getBody(ctx)
-
-
         if (!body.id) {
             return returnError(ctx, 'NoID')
         }
-        let check = (await query(`select * from devices where id='${body.id}';`)).rows
+
+        let check = (await query(queries.SELECT.DEVICES(body.id))).rows
 
         if (check?.length === 0) {
-            let insert = await query(`insert into devices(name, id) values ('${body.name}', '${body.id}');`)
-            return ctx.response.body = insert
+            try {
+                await query(queries.INSERT.DEVICES(body.name, body.id))
+                await query(queries.INSERT.SETTINGS(body.id))
+                return ctx.response.body = {
+                    message: "Device was registered successfully."
+                }
+            } catch (error) {
+                return ctx.response.body = error
+            }
         } else {
-            return ctx.response.body = check
+            // @ts-ignore: No Typings
+            return ctx.response.body = check[0]
         }
 
     } catch (error) {
@@ -42,19 +52,19 @@ router.post('/settings', async (ctx) => {
         return returnError(ctx, 'NoID')
     }
 
-    let check = (await query(`select * from devices where id='${deviceID}';`)).rows
+    let check = (await query(queries.SELECT.DEVICES(deviceID))).rows
 
     if (check?.length === 0) {
         return returnError(ctx, 'NoID')
     }
 
-    let settings = (await query(`select * from settings where device='${deviceID}';`)).rows
+    let settings = (await query(queries.SELECT.SETTINGS(deviceID))).rows
 
     if (settings?.length === 0) {
-        let insert = await query(`insert into settings(device, jsonData) values ('${deviceID}', '${JSON.stringify(body.settings)}');`)
+        let insert = await query(queries.INSERT.SETTINGS(deviceID))
         return ctx.response.body = insert
     } else {
-        let update = await query(`update settings set jsonData='${JSON.stringify(body.settings)}' where device='${deviceID}';`)
+        let update = await query(queries.UPDATE.ALL_SETTINGS(deviceID, body.settings))
         return ctx.response.body = update
     }
 })
@@ -89,21 +99,39 @@ router.post('/sql', async (ctx) => {
 
 
 router.post('/waterlevel', async (ctx) => {
-    const body = await getBody(ctx)
+    try {
+        const body = await getBody(ctx)
 
-    if (!body.id) {
-        return returnError(ctx, 'NoID')
+        if (!body.id) return returnError(ctx, 'NoID')
+        if (!body.waterlevel) return returnError(ctx, 'NoValuePassed')
+
+        // @ts-ignore: No Typings
+        const settings = JSON.parse((await query(queries.SELECT.SETTINGS(body.id))).rows[0].jsonData)
+        const insert = await query(queries.INSERT.LEVEL(body.id, body.waterlevel))
+
+        if (body.waterlevel > settings.alertLevel) {
+            try {
+                // const notif = await sendNotif({
+                //     message: `Waterlevel (${body.waterlevel}) is above configured alert level (${settings.alertLevel})`,
+                //     // priority: 4,
+                //     title: `Waterlevel Alert on ${body.id}`,
+                //     // tags: ['waterlevel', 'alert']
+                // })
+
+                const notif = await sendNotif('this is a test')
+
+                console.log(notif)
+            } catch (error) {
+                console.error(error)
+            }
+        }
+
+
+        return ctx.response.body = insert
+    } catch (error) {
+        console.error(error)
+        ctx.response.status = 500
     }
-
-    let check = (await query(`select * from devices where id='${body.id}';`)).rows
-
-    if (check?.length === 0) {
-        return returnError(ctx, 'NoID')
-    }
-    let insert = await query(`insert into waterlevel(device, level) values ('${body.id}', '${body.level}');`)
-
-
-    return ctx.response.body = insert
 
 
 })

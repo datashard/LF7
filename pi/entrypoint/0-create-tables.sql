@@ -7,15 +7,15 @@ use jch;
 CREATE TABLE
     devices (
         id VARCHAR(255) not null,
-        name VARCHAR(50),
+        deviceName VARCHAR(50),
         PRIMARY KEY (id)
     ) ENGINE = InnoDB;
 
 create table
     waterlevel (
         id integer not null auto_increment,
-        level integer not null,
-        date datetime not null,
+        waterlevel integer,
+        insert_date datetime default CURRENT_TIMESTAMP,
         device varchar(25),
         primary key (id),
         foreign key (device) references devices (id)

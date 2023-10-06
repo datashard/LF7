@@ -35,6 +35,7 @@ const Errors = {
 
 
 export default function returnError(ctx: Context, error: keyof typeof Errors) {
+    console.log(error)
     ctx.response.status = Errors[error].status
-    return ctx.response.body = Errors[error].status
+    return ctx.response.body = Errors[error].body
 }

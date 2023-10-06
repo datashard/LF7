@@ -1,10 +1,10 @@
 import { Client } from "https://deno.land/x/mysql@v2.12.1/mod.ts";
 const client = await new Client().connect({
     hostname: "db",
-    username: "admin",
+    username: "root",
     db: "jch",
-    poolSize: 4, // connection limit
-    password: "admin",
+    // poolSize: 1, // connection limit
+    password: "",
 });
 
 
