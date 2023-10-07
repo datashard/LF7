@@ -1,14 +1,19 @@
-export default async function sendNotif(body: any) {
-    try {
-        const res = await fetch(`${(`https://${Deno.env.get('NTFY_SERVER')}/${Deno.env.get('NTFY_TOPIC')}?auth=${Deno.env.get('NTFY_TOKEN')}`)}`, {
-            method: 'POST',
-            body: 'this is a test',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
+import { NtfyClient } from "npm:ntfy"
 
-        return res
+const ntfy = new NtfyClient(`https://${Deno.env.get('NTFY_SERVER')}`)
+
+
+export default async function sendNotif({ message, tags }: { message: string, tags: string[] }) {
+    try {
+        await ntfy.publish({
+            message,
+            topic: Deno.env.get('NTFY_TOPIC')!,
+            authorization: {
+                username: 'presentation',
+                password: "testing"
+            }
+
+        })
     } catch (error) {
         console.error(error)
         return error
