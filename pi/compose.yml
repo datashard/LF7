@@ -11,7 +11,7 @@ services:
       - ./mysql:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 10s
+      timeout: 5s
       retries: 10
     environment:
       TZ: "Europe/Berlin"

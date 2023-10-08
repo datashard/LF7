@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Chart Page</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        table {
+            font-family: arial, sans-serif;
+            border-collapse: collapse;
+            display: flex;
+            justify-content: center;
+
+        }
+
+        td,
+        th {
+            border: 1px solid #dddddd;
+            text-align: left;
+            padding: 8px;
+        }
+
+        tr:nth-child(even) {
+            background-color: #dddddd;
+        }
+
+        .ChartContainer {
+            width: 50%;
+            height: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+
+        }
+    </style>
+
+    <script>
+        let WaterLevels = [];
+        let alertLevels = []
+        let chart = null;
+
+        function String2Hex(tmp) {
+            var str = '';
+            for (var i = 0; i < tmp.length; i++) {
+                str += tmp[i].charCodeAt(0).toString(16);
+            }
+            console.log(`#${str.split().reverse().join().slice(0, 6)}`)
+            return `#${str.split().reverse().join().slice(0, 6)}`
+        }
+
+        function updateDeviceName(element) {
+            const deviceID = element.getAttribute('data-deviceNameInput');
+            const value = element.value;
+            updateSettings(deviceID, 'deviceName', value);
+            return element.value = '';
+        }
+        function updateInterval(element) {
+            const deviceID = element.getAttribute('data-postIntervalInput');
+            const value = element.value;
+            updateSettings(deviceID, 'interval', value);
+            return element.value = '';
+        }
+
+        function updateAlertlevel(element) {
+            const deviceID = element.getAttribute('data-alertInput');
+            const value = element.value;
+            updateSettings(deviceID, 'alertLevel', value);
+
+            return element.value = '';
+        }
+
+        function updateSettings(id, setting, value) {
+            const currentHost = window.location.origin;
+            fetch(`${currentHost}/update`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    id,
+                    setting,
+                    value
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data)
+                })
+                .catch(error => console.log(error));
+        }
+
+        function fetchRecentData() {
+            const currentHost = window.location.origin;
+            fetch(`${currentHost}/recent`)
+                .then(response => response.json())
+                .then(data => {
+                    WaterLevels = data.recent;
+                    alertLevels = data.alertLevels;
+                    updateChart();
+                })
+                .catch(error => console.log(error));
+        }
+
+        function updateChart() {
+            console.log("Updating Chart")
+            const ctx = document.getElementById('myChart').getContext('2d');
+            const deviceIds = [...new Set(WaterLevels.map(waterLevel => waterLevel.deviceID))];
+            const datasets = deviceIds.map(deviceID => {
+                const data = WaterLevels.filter(waterLevel => waterLevel.deviceID === deviceID);
+                const alertLevel = alertLevels.find(alertLevel => alertLevel.device === deviceID);
+                const deviceName = WaterLevels.filter(w => w.deviceID === deviceID)[0].device
+                const postInterval = WaterLevels.filter(w => w.deviceID === deviceID)[0].postInterval
+
+                const deviceNameEle = document.querySelector(`[data-deviceName-id="${deviceID}"]`)
+                const postIntervalEle = document.querySelector(`[data-postInterval-id="${deviceID}"]`)
+                const alertLevelEle = document.querySelector(`[data-alertLevel-id="${deviceID}"]`)
+
+                deviceNameEle.innerHTML = deviceName;
+                postIntervalEle.innerHTML = postInterval;
+                alertLevelEle.innerHTML = alertLevel.alertLevel;
+
+
+                return {
+                    label: `Waterlevel - ${deviceName}`,
+                    data: data.map(waterLevel => {
+                        return {
+                            x: waterLevel.date,
+                            y: waterLevel.waterlevel
+                        }
+                    }),
+                    borderWidth: 4,
+                    pointBackgroundColor: function (ctx) {
+                        if (ctx.parsed.y >= Number(alertLevel.alertLevel)) {
+                            return 'red'
+                        } else {
+                            return 'green'
+                        }
+                    },
+                    pointBorderColor: function (ctx) {
+                        if (ctx.parsed.y >= Number(alertLevel.alertLevel)) {
+                            return 'red'
+                        } else {
+                            return 'green'
+                        }
+                    },
+                    tension: 0.2
+                };
+            });
+            if (chart) {
+                chart.destroy();
+            }
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [...new Set(WaterLevels.map(waterLevel => waterLevel.date))],
+                    datasets,
+                    options: {
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: {
+                                    unit: 'minute'
+                                }
+                            }
+                        }
+                    }
+                },
+                options: {
+                    animation: false
+                }
+            });
+
+
+        }
+
+        fetchRecentData()
+        setInterval(fetchRecentData, 5 * 1000);
+    </script>
+
+</head>
+
+<body>
+    <table>
+        <tr>
+            <th>ID</th>
+            {{!-- <th>Device ID</th> --}}
+            <th>Device Name</th>
+            <th>Update Interval</th>
+            <th>Alert Level</th>
+            <th>Set Device Name</th>
+            <th>Set Update Time (in ms)</th>
+            <th>Set Alert Level</th>
+
+        </tr>
+        {{#each device}}
+        <tr>
+            <td>{{id}}</td>
+            {{!-- <td>{{deviceID}}</td> --}}
+            <td data-deviceName-id="{{deviceID}}">{{deviceName}}</td>
+            <td data-postInterval-id="{{deviceID}}">{{postInterval}}</td>
+            <td data-alertLevel-id="{{deviceID}}">{{alertLevel}}</td>
+            <td>
+                <input type="text" data-deviceNameInput="{{deviceID}}"
+                    onkeydown="if (event.keyCode === 13) { updateDeviceName(this); }">
+            </td>
+            <td>
+                <input type="number" data-postIntervalInput="{{deviceID}}"
+                    onkeydown="if (event.keyCode === 13) { updateInterval(this); }">
+            </td>
+            <td>
+                <input type="number" data-alertInput="{{deviceID}}"
+                    onkeydown="if (event.keyCode === 13) { updateAlertlevel(this); }">
+            </td>
+
+        </tr>
+        {{/each}}
+    </table>
+    <div class="ChartContainer">
+        <canvas id="myChart"></canvas>
+
+    </div>
+</body>
+
+</html

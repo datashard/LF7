@@ -1,17 +1,37 @@
 import { Application, Router } from "https://deno.land/x/oak@v11.1.0/mod.ts";
 import { oakCors } from "https://deno.land/x/cors@v1.2.2/mod.ts";
+import { oakAdapter, ViewConfig, handlebarsEngine } from "https://deno.land/x/view_engine@v10.6.0/mod.ts"
 
 import query from "./lib/mysql.ts";
 import queries from './lib/queries.ts'
 import getBody from "./lib/getBody.ts";
 import returnError from "./lib/errors.ts";
 import sendNotif from "./lib/sendNotif.ts";
+import { viewEngine } from "https://deno.land/x/view_engine@v10.6.0/lib/viewEngine.ts";
 
 const router = new Router();
 
+const viewConfig: ViewConfig = {
+    viewRoot: "./views",
+}
+
 router.get('/', async (ctx) => {
-    // TODO Replace
-    ctx.response.body = (await query('select * from devices;')).rows
+    const device = (await query(queries.SELECT.DEVICES_SETTINGS())).rows
+    // @ts-ignore: Missing Typings
+    ctx.render('home.hbs', { title: 'Home', device })
+})
+
+router.get('/recent', async (ctx) => {
+    const last50 = (await query(queries.SELECT.LAST50())).rows?.reverse()
+    const alertLevels = (await query(queries.SELECT.ALERTLEVELS())).rows
+
+    const reply = {
+        recent: last50,
+        alertLevels
+    }
+
+
+    return ctx.response.body = reply
 })
 
 router.post('/register', async (ctx) => {
@@ -21,7 +41,7 @@ router.post('/register', async (ctx) => {
             return returnError(ctx, 'NoID')
         }
 
-        let check = (await query(queries.SELECT.DEVICES(body.id))).rows
+        let check = (await query(queries.SELECT.DEVICE(body.id))).rows
 
         if (check?.length === 0) {
             try {
@@ -43,6 +63,29 @@ router.post('/register', async (ctx) => {
     }
 })
 
+router.post('/update', async (ctx) => {
+
+    const body = await getBody(ctx)
+    const deviceID = body.id
+    const setting = body.setting
+    const value = body.value
+
+    if (!deviceID) {
+        return returnError(ctx, 'NoID')
+    }
+
+    if (setting === "deviceName") {
+        let update = await query(queries.UPDATE.UPDATE_DEVICENAME(deviceID, value))
+        return ctx.response.body = update
+    }
+
+    // update setting
+    let update = await query(queries.UPDATE.SETTING(deviceID, setting, value))
+
+    return ctx.response.body = update
+
+})
+
 router.post('/settings', async (ctx) => {
     const params = await ctx.request.url.searchParams
     const deviceID = params.get('id')
@@ -52,7 +95,7 @@ router.post('/settings', async (ctx) => {
         return returnError(ctx, 'NoID')
     }
 
-    let check = (await query(queries.SELECT.DEVICES(deviceID))).rows
+    let check = (await query(queries.SELECT.DEVICE(deviceID))).rows
 
     if (check?.length === 0) {
         return returnError(ctx, 'NoID')
@@ -109,25 +152,25 @@ router.post('/waterlevel', async (ctx) => {
         const settings = JSON.parse((await query(queries.SELECT.SETTINGS(body.id))).rows[0].jsonData)
         const insert = await query(queries.INSERT.LEVEL(body.id, body.waterlevel))
 
-        if (body.waterlevel > settings.alertLevel) {
+        if (body.waterlevel >= settings.alertLevel) {
             try {
-                // const notif = await sendNotif({
-                //     message: `Waterlevel (${body.waterlevel}) is above configured alert level (${settings.alertLevel})`,
-                //     // priority: 4,
-                //     title: `Waterlevel Alert on ${body.id}`,
-                //     // tags: ['waterlevel', 'alert']
-                // })
+                sendNotif({
+                    title: body.id,
+                    message: `Waterlevel (${body.waterlevel}) is equal to/above configured alert level (${settings.alertLevel})`,
+                    tags: ['waterlevel', 'alert']
+                })
 
-                const notif = await sendNotif('this is a test')
 
-                console.log(notif)
             } catch (error) {
                 console.error(error)
             }
         }
 
 
-        return ctx.response.body = insert
+        return ctx.response.body = {
+            message: "Waterlevel was inserted successfully.",
+            settings
+        }
     } catch (error) {
         console.error(error)
         ctx.response.status = 500
@@ -137,6 +180,7 @@ router.post('/waterlevel', async (ctx) => {
 })
 
 const app = new Application();
+app.use(viewEngine(oakAdapter, handlebarsEngine, viewConfig))
 app.use(oakCors({ origin: "*" }));
 app.use(router.routes());
 app.use(router.allowedMethods());
