@@ -21,7 +21,7 @@ router.get('/', async (ctx) => {
     ctx.render('home.hbs', { title: 'Home', device })
 })
 
-router.get('/recent', async (ctx) => {
+router.get('/fetch', async (ctx) => {
     const last50 = (await query(queries.SELECT.LAST50())).rows?.reverse()
     const alertLevels = (await query(queries.SELECT.ALERTLEVELS())).rows
 
@@ -150,12 +150,14 @@ router.post('/waterlevel', async (ctx) => {
 
         // @ts-ignore: No Typings
         const settings = JSON.parse((await query(queries.SELECT.SETTINGS(body.id))).rows[0].jsonData)
+        // @ts-ignore: No Typings
+        const device = (await query(queries.SELECT.DEVICENAME(body.id))).rows[0].deviceName
         const insert = await query(queries.INSERT.LEVEL(body.id, body.waterlevel))
 
         if (body.waterlevel >= settings.alertLevel) {
             try {
                 sendNotif({
-                    title: body.id,
+                    title: device,
                     message: `Waterlevel (${body.waterlevel}) is equal to/above configured alert level (${settings.alertLevel})`,
                     tags: ['waterlevel', 'alert']
                 })
