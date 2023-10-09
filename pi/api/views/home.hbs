@@ -93,7 +93,7 @@
 
         function fetchRecentData() {
             const currentHost = window.location.origin;
-            fetch(`${currentHost}/recent`)
+            fetch(`${currentHost}/fetch`)
                 .then(response => response.json())
                 .then(data => {
                     WaterLevels = data.recent;
@@ -105,72 +105,76 @@
 
         function updateChart() {
             console.log("Updating Chart")
-            const ctx = document.getElementById('myChart').getContext('2d');
-            const deviceIds = [...new Set(WaterLevels.map(waterLevel => waterLevel.deviceID))];
-            const datasets = deviceIds.map(deviceID => {
-                const data = WaterLevels.filter(waterLevel => waterLevel.deviceID === deviceID);
-                const alertLevel = alertLevels.find(alertLevel => alertLevel.device === deviceID);
-                const deviceName = WaterLevels.filter(w => w.deviceID === deviceID)[0].device
-                const postInterval = WaterLevels.filter(w => w.deviceID === deviceID)[0].postInterval
+            try {
+                const ctx = document.getElementById('myChart').getContext('2d');
+                const deviceIds = [...new Set(WaterLevels.map(waterLevel => waterLevel.deviceID))];
+                const datasets = deviceIds.map(deviceID => {
+                    const data = WaterLevels.filter(waterLevel => waterLevel.deviceID === deviceID);
+                    const alertLevel = alertLevels.find(alertLevel => alertLevel.device === deviceID);
+                    const deviceName = WaterLevels.filter(w => w.deviceID === deviceID)[0].device
+                    const postInterval = WaterLevels.filter(w => w.deviceID === deviceID)[0].postInterval
 
-                const deviceNameEle = document.querySelector(`[data-deviceName-id="${deviceID}"]`)
-                const postIntervalEle = document.querySelector(`[data-postInterval-id="${deviceID}"]`)
-                const alertLevelEle = document.querySelector(`[data-alertLevel-id="${deviceID}"]`)
+                    const deviceNameEle = document.querySelector(`[data-devicename-id="${deviceID}"]`)
+                    const postIntervalEle = document.querySelector(`[data-postinterval-id="${deviceID}"]`)
+                    const alertLevelEle = document.querySelector(`[data-alertlevel-id="${deviceID}"]`)
 
-                deviceNameEle.innerHTML = deviceName;
-                postIntervalEle.innerHTML = postInterval;
-                alertLevelEle.innerHTML = alertLevel.alertLevel;
+                    deviceNameEle.innerHTML = deviceName;
+                    postIntervalEle.innerHTML = postInterval;
+                    alertLevelEle.innerHTML = alertLevel.alertLevel;
 
 
-                return {
-                    label: `Waterlevel - ${deviceName}`,
-                    data: data.map(waterLevel => {
-                        return {
-                            x: waterLevel.date,
-                            y: waterLevel.waterlevel
-                        }
-                    }),
-                    borderWidth: 4,
-                    pointBackgroundColor: function (ctx) {
-                        if (ctx.parsed.y >= Number(alertLevel.alertLevel)) {
-                            return 'red'
-                        } else {
-                            return 'green'
-                        }
-                    },
-                    pointBorderColor: function (ctx) {
-                        if (ctx.parsed.y >= Number(alertLevel.alertLevel)) {
-                            return 'red'
-                        } else {
-                            return 'green'
-                        }
-                    },
-                    tension: 0.2
-                };
-            });
-            if (chart) {
-                chart.destroy();
-            }
-            chart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [...new Set(WaterLevels.map(waterLevel => waterLevel.date))],
-                    datasets,
-                    options: {
-                        scales: {
-                            x: {
-                                type: 'time',
-                                time: {
-                                    unit: 'minute'
+                    return {
+                        label: `Waterlevel - ${deviceName}`,
+                        data: data.map(waterLevel => {
+                            return {
+                                x: waterLevel.date,
+                                y: waterLevel.waterlevel
+                            }
+                        }),
+                        borderWidth: 4,
+                        pointBackgroundColor: function (ctx) {
+                            if (ctx.parsed.y >= Number(alertLevel.alertLevel)) {
+                                return 'red'
+                            } else {
+                                return 'green'
+                            }
+                        },
+                        pointBorderColor: function (ctx) {
+                            if (ctx.parsed.y >= Number(alertLevel.alertLevel)) {
+                                return 'red'
+                            } else {
+                                return 'green'
+                            }
+                        },
+                        tension: 0.2
+                    };
+                });
+                if (chart) {
+                    chart.destroy();
+                }
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [...new Set(WaterLevels.map(waterLevel => waterLevel.date))],
+                        datasets,
+                        options: {
+                            scales: {
+                                x: {
+                                    type: 'time',
+                                    time: {
+                                        unit: 'minute'
+                                    }
                                 }
                             }
                         }
+                    },
+                    options: {
+                        animation: false
                     }
-                },
-                options: {
-                    animation: false
-                }
-            });
+                });
+            } catch (error) {
+                console.log(error)
+            }
 
 
         }
@@ -184,7 +188,7 @@
 <body>
     <table>
         <tr>
-            <th>ID</th>
+            {{!-- <th>ID</th> --}}
             {{!-- <th>Device ID</th> --}}
             <th>Device Name</th>
             <th>Update Interval</th>
@@ -196,11 +200,11 @@
         </tr>
         {{#each device}}
         <tr>
-            <td>{{id}}</td>
+            {{!-- <td>{{id}}</td> --}}
             {{!-- <td>{{deviceID}}</td> --}}
-            <td data-deviceName-id="{{deviceID}}">{{deviceName}}</td>
-            <td data-postInterval-id="{{deviceID}}">{{postInterval}}</td>
-            <td data-alertLevel-id="{{deviceID}}">{{alertLevel}}</td>
+            <td data-devicename-id="{{deviceID}}">{{deviceName}}</td>
+            <td data-postinterval-id="{{deviceID}}">{{postInterval}}</td>
+            <td data-alertlevel-id="{{deviceID}}">{{alertLevel}}</td>
             <td>
                 <input type="text" data-deviceNameInput="{{deviceID}}"
                     onkeydown="if (event.keyCode === 13) { updateDeviceName(this); }">
